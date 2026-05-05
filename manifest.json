@@ -1,0 +1,20 @@
+{
+  "name": "LEDGR — Trading Journal",
+  "short_name": "LEDGR",
+  "description": "Dark-mode trading journal for Indian F&O, Forex and Crypto",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "productivity", "utilities"]
+}

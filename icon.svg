@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0A0A0A"/>
+  <rect x="48" y="48" width="416" height="416" rx="64" fill="#141414" stroke="#262626" stroke-width="4"/>
+  <g transform="translate(256 256)" stroke="#10B981" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <polyline points="-160 32 -56 -72 24 8 152 -120"/>
+    <polyline points="80 -120 152 -120 152 -48"/>
+  </g>
+  <text x="256" y="430" text-anchor="middle" font-family="Chivo,system-ui,sans-serif" font-weight="800" font-size="64" fill="#FFFFFF" letter-spacing="-2">LEDGR</text>
+</svg>
