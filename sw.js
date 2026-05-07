@@ -1,5 +1,5 @@
 /* LEDGR Service Worker — offline-first cache for shell */
-const VERSION = "ledgr-v2";
+const VERSION = "ledgr-v3";
 const SHELL = [
   "./",
   "./index.html",
