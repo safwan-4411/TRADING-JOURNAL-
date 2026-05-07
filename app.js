@@ -67,67 +67,77 @@ function setCloudStatus(s) {
 }
 
 async function initAuth() {
-  if (!supa) { setCloudStatus("offline"); return; }
+  if (!supa) { setCloudStatus("offline"); renderLandingCTA(); return; }
 
-  // Subscribe to auth changes FIRST before anything else
+  const isOAuthCallback = location.hash.includes("access_token") ||
+                          location.hash.includes("error=") ||
+                          location.search.includes("code=");
+
+  // If returning from Google OAuth, show loading message immediately
+  if (isOAuthCallback) {
+    const cta = document.getElementById("landing-cta-row");
+    if (cta) cta.innerHTML = `<div style="display:flex;align-items:center;gap:10px;margin-top:8px"><div style="width:16px;height:16px;border:2px solid #333;border-top-color:#10B981;border-radius:50%;animation:spin 0.8s linear infinite"></div><span class="muted small mono">Signing you in...</span></div>`;
+  }
+
+  // onAuthStateChange fires for INITIAL_SESSION (existing session) AND SIGNED_IN (new OAuth).
+  // This single listener handles every case — no polling needed.
+  let initialFired = false;
+
   supa.auth.onAuthStateChange(async (event, sess) => {
-    const was = currentUser;
+    const prevUser = currentUser;
     currentUser = sess?.user || null;
-    if (event === "SIGNED_IN" && !was) {
+
+    // User just signed in (OAuth redirect or new login)
+    if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && currentUser && !prevUser) {
+      if (isOAuthCallback || location.hash.includes("access_token")) {
+        history.replaceState(null, "", location.pathname);
+      }
       await firstSignInSync();
       startRealtime();
       document.getElementById("landing").classList.add("hidden");
       document.getElementById("app").classList.remove("hidden");
-      if (!location.hash || location.hash.includes("access_token")) location.hash = "#/dashboard";
+      location.hash = "#/dashboard";
+      updateUserBadge();
+      renderRoute();
+      initialFired = true;
+      return;
     }
-    if (event === "SIGNED_OUT") stopRealtime();
-    updateUserBadge();
-    renderRoute();
+
+    // No session on initial load
+    if (event === "INITIAL_SESSION" && !currentUser) {
+      updateUserBadge();
+      renderLandingCTA();
+      initialFired = true;
+      return;
+    }
+
+    // User signed out
+    if (event === "SIGNED_OUT") {
+      stopRealtime();
+      currentUser = null;
+      document.getElementById("app").classList.add("hidden");
+      document.getElementById("landing").classList.remove("hidden");
+      updateUserBadge();
+      renderLandingCTA();
+      return;
+    }
+
+    // Token refreshed
+    if (event === "TOKEN_REFRESHED" && currentUser) {
+      const appVisible = !document.getElementById("app").classList.contains("hidden");
+      if (appVisible) renderRoute();
+    }
   });
 
-  // Get current session
-  const { data: { session } } = await supa.auth.getSession();
-  currentUser = session?.user || null;
-
-  // If token is in the URL hash (OAuth redirect), wait for Supabase to parse it
-  // then poll for the session since onAuthStateChange may fire before we subscribed
-  if (location.hash.includes("access_token")) {
-    // Show loading state on landing
-    document.getElementById("landing").classList.remove("hidden");
-    document.getElementById("app").classList.add("hidden");
-    const cta = document.getElementById("landing-cta-row");
-    const topRight = document.getElementById("landing-nav-right");
-    if (cta) cta.innerHTML = `<span class="muted small mono" id="auth-loading-msg">• Signing you in…</span>`;
-    if (topRight) topRight.innerHTML = "";
-
-    // Poll up to 4 seconds for Supabase to establish the session
-    for (let i = 0; i < 8; i++) {
-      await new Promise(r => setTimeout(r, 500));
-      const { data: { session: s } } = await supa.auth.getSession();
-      if (s?.user) {
-        currentUser = s.user;
-        await firstSignInSync();
-        startRealtime();
-        document.getElementById("landing").classList.add("hidden");
-        document.getElementById("app").classList.remove("hidden");
-        location.hash = "#/dashboard";
-        updateUserBadge();
-        renderRoute();
-        return;
-      }
+  // Safety net: if INITIAL_SESSION never fires within 5s, show landing
+  setTimeout(() => {
+    if (!initialFired) {
+      updateUserBadge();
+      renderLandingCTA();
     }
-    // If still no session after 4s, show landing with buttons
-    updateUserBadge();
-    renderLandingCTA();
-    return;
-  }
-
-  if (currentUser) {
-    await pullAllFromCloud();
-    startRealtime();
-  }
-  updateUserBadge();
+  }, 5000);
 }
+
 
 async function signInGoogle() {
   if (!supa) return toast("Cloud sync not configured", "error");
