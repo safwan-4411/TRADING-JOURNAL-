@@ -73,25 +73,33 @@ async function initAuth() {
                           location.hash.includes("error=") ||
                           location.search.includes("code=");
 
-  // If returning from Google OAuth, show loading message immediately
+  // Show spinner immediately if this is an OAuth redirect
   if (isOAuthCallback) {
     const cta = document.getElementById("landing-cta-row");
     if (cta) cta.innerHTML = `<div style="display:flex;align-items:center;gap:10px;margin-top:8px"><div style="width:16px;height:16px;border:2px solid #333;border-top-color:#10B981;border-radius:50%;animation:spin 0.8s linear infinite"></div><span class="muted small mono">Signing you in...</span></div>`;
   }
 
-  // onAuthStateChange fires for INITIAL_SESSION (existing session) AND SIGNED_IN (new OAuth).
-  // This single listener handles every case — no polling needed.
-  let initialFired = false;
+  let authHandled = false; // prevent duplicate handling
 
   supa.auth.onAuthStateChange(async (event, sess) => {
-    const prevUser = currentUser;
     currentUser = sess?.user || null;
 
-    // User just signed in (OAuth redirect or new login)
-    if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && currentUser && !prevUser) {
-      if (isOAuthCallback || location.hash.includes("access_token")) {
+    // ---- Signed in (covers: OAuth redirect, existing session, sign-in from header) ----
+    if (currentUser && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+      if (authHandled) {
+        // Already in app — just refresh data and badge
+        updateUserBadge();
+        const appVisible = !document.getElementById("app").classList.contains("hidden");
+        if (appVisible) renderRoute();
+        return;
+      }
+      authHandled = true;
+
+      // Clean OAuth tokens from URL
+      if (location.hash.includes("access_token") || location.search.includes("code=")) {
         history.replaceState(null, "", location.pathname);
       }
+
       await firstSignInSync();
       startRealtime();
       document.getElementById("landing").classList.add("hidden");
@@ -99,20 +107,20 @@ async function initAuth() {
       location.hash = "#/dashboard";
       updateUserBadge();
       renderRoute();
-      initialFired = true;
       return;
     }
 
-    // No session on initial load
+    // ---- No session on initial load ----
     if (event === "INITIAL_SESSION" && !currentUser) {
+      authHandled = true;
       updateUserBadge();
       renderLandingCTA();
-      initialFired = true;
       return;
     }
 
-    // User signed out
+    // ---- Signed out ----
     if (event === "SIGNED_OUT") {
+      authHandled = false;
       stopRealtime();
       currentUser = null;
       document.getElementById("app").classList.add("hidden");
@@ -122,20 +130,22 @@ async function initAuth() {
       return;
     }
 
-    // Token refreshed
+    // ---- Token refreshed ----
     if (event === "TOKEN_REFRESHED" && currentUser) {
+      updateUserBadge();
       const appVisible = !document.getElementById("app").classList.contains("hidden");
       if (appVisible) renderRoute();
     }
   });
 
-  // Safety net: if INITIAL_SESSION never fires within 5s, show landing
+  // Safety net: if auth never resolves within 6s (slow network), show landing buttons
   setTimeout(() => {
-    if (!initialFired) {
+    if (!authHandled) {
+      authHandled = true;
       updateUserBadge();
       renderLandingCTA();
     }
-  }, 5000);
+  }, 6000);
 }
 
 
@@ -1643,19 +1653,10 @@ function debouncedPull() {
 }
 
 function handleBoot() {
-  // Only skip landing if there's an explicit non-auth route in the hash
-  // (i.e., user navigated directly to a page like #/dashboard or #/history)
-  const hashIsRoute = location.hash && !location.hash.includes("access_token") && !location.hash.includes("error=") && location.hash.match(/#\/(dashboard|add-trade|history|calendar|journal|settings)/);
-  if (hashIsRoute) {
-    document.getElementById("landing").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    renderRoute();
-  } else {
-    // Always show landing on fresh load / OAuth callback
-    document.getElementById("landing").classList.remove("hidden");
-    document.getElementById("app").classList.add("hidden");
-    renderLandingCTA();
-  }
+  // Always show landing shell on load. initAuth() will switch to app if session exists.
+  // Do NOT call renderLandingCTA() here — initAuth handles it after auth resolves.
+  document.getElementById("landing").classList.remove("hidden");
+  document.getElementById("app").classList.add("hidden");
 }
 
 handleBoot();
