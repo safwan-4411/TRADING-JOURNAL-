@@ -270,7 +270,7 @@ body {
 .stat-card-sub { font-size: 11px; color: var(--muted-3); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
 
 /* ========= PAGE HEADERS ========= */
-.page-header { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+.page-header { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; align-items: flex-start; }
 @media (min-width: 640px) { .page-header { flex-direction: row; justify-content: space-between; align-items: flex-end; } }
 .page-title { font-family: 'Chivo', sans-serif; font-weight: 700; font-size: 30px; letter-spacing: -0.02em; }
 @media (min-width: 768px) { .page-title { font-size: 36px; } }
