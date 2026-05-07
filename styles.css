@@ -187,6 +187,7 @@ body {
   transition: all 0.15s;
 }
 .btn-primary { background: var(--text); color: #000; }
+.btn-primary svg, .btn-secondary svg, .btn-danger svg, .btn-outline svg { width: 14px; height: 14px; flex-shrink: 0; }
 .btn-primary:hover { background: #E5E5E5; }
 .btn-primary:active { transform: scale(0.98); }
 .btn-primary.btn-lg { padding: 12px 22px; font-size: 14px; font-weight: 600; }
